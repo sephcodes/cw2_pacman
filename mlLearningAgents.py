@@ -30,7 +30,6 @@ import random
 from pacman import Directions, GameState
 from pacman_utils.game import Agent
 from pacman_utils import util
-
 import numpy as np
 
 
@@ -161,81 +160,29 @@ class GameStateFeatures:
             features.append(0)
 
         # Is there food around Pacman?
-        foodGrid = self.state.getFood()
-        if foodGrid[xLoc][yLoc+1] == True:
-            features.append(1)
-        else:
-            features.append(0)
-        if foodGrid[xLoc+1][yLoc] == True:
-            features.append(1)
-        else:
-            features.append(0)
-        if foodGrid[xLoc][yLoc-1] == True:
-            features.append(1)
-        else:
-            features.append(0)
-        if foodGrid[xLoc-1][yLoc] == True:
-            features.append(1)
-        else:
-            features.append(0)
-
-        # features.append(sum(np.array(self.state.getFood().data).flatten()))
+        # foodGrid = self.state.getFood()
+        # if foodGrid[xLoc][yLoc+1] == True:
+        #     features.append(1)
+        # else:
+        #     features.append(0)
+        # if foodGrid[xLoc+1][yLoc] == True:
+        #     features.append(1)
+        # else:
+        #     features.append(0)
+        # if foodGrid[xLoc][yLoc-1] == True:
+        #     features.append(1)
+        # else:
+        #     features.append(0)
+        # if foodGrid[xLoc-1][yLoc] == True:
+        #     features.append(1)
+        # else:
+        #     features.append(0)
 
         # Are there ghosts in any of the eight squares around Pacman
         ghosts = self.state.getGhostPositions()
         facing = self.state.getPacmanState().configuration.direction
         visibleGhost = False
 
-        for i in range(len(ghosts)):
-            if ghosts[i] == (xLoc-1, yLoc+1):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc, yLoc+1):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc, yLoc+2):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc+1, yLoc+1):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc-1, yLoc):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc-2, yLoc):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc+1, yLoc):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc+2, yLoc):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc-1, yLoc-1):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc, yLoc-1):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc, yLoc-1):
-                features.append(1)
-            else:
-                features.append(0)
-            if ghosts[i] == (xLoc+1, yLoc-1):
-                features.append(1)
-            else:
-                features.append(0)
-                
         # Is there a ghost in front of Pacman?
         for i in range(len(ghosts)):
             if self.inFront(ghosts[i], facing, self.state):
@@ -245,16 +192,81 @@ class GameStateFeatures:
             features.append(1)
         else:
             features.append(0)
+
+        # encoded rather than sparse
+        for x, y in [(0,1),(1,0),(0,-1),(-1,0)]:
+            features.append(1 if (xLoc+x, yLoc+y) in ghosts else 0)
+
+        # ghost nearby (within two spaces)
+        nearby = any(abs(g[0]-xLoc)+abs(g[1]-yLoc) <= 2 for g in ghosts)
+        features.append(1 if nearby else 0)
+
+        foodGrid = self.state.getFood()
+        food_list = foodGrid.asList()
+        if food_list:
+            nearest = min(food_list, key=lambda f: abs(f[0]-xLoc) + abs(f[1]-yLoc)) # nearest food in any direction
+            fx, fy = nearest
+            features.append(1 if fy > yLoc else 0)  # food is North
+            features.append(1 if fx > xLoc else 0)  # food is East
+            features.append(1 if fy < yLoc else 0)  # food is South
+            features.append(1 if fx < xLoc else 0)  # food is West
+        else:
+            features.extend([0, 0, 0, 0])
+
+        features.append(sum(np.array(self.state.getFood().data).flatten()))
             
         return features
+    # def getFeatureVector(self):
+    #     features = []
+    #     xLoc = self.state.getPacmanPosition()[0]
+    #     yLoc = self.state.getPacmanPosition()[1]
+    #     wallGrid = self.state.getWalls()
+    #     ghosts = self.state.getGhostPositions()
+
+    #     # walls around pacman
+    #     for dx, dy in [(0,1),(1,0),(0,-1),(-1,0)]:
+    #         features.append(1 if wallGrid[xLoc+dx][yLoc+dy] else 0)
+
+    #     # direction to nearest food (4 bits)
+    #     food_list = self.state.getFood().asList()
+    #     if food_list:
+    #         nearest = min(food_list, key=lambda f: abs(f[0]-xLoc)+abs(f[1]-yLoc))  # nearest food in any direction or distance
+    #         fx, fy = nearest
+    #         features.append(1 if fy > yLoc else 0)
+    #         features.append(1 if fx > xLoc else 0)
+    #         features.append(1 if fy < yLoc else 0)
+    #         features.append(1 if fx < xLoc else 0)
+    #     else:
+    #         features.extend([0,0,0,0])
+
+    #     # Direction to nearest ghost (4 bits)
+    #     if ghosts:
+    #         nearest_g = min(ghosts, key=lambda g: abs(g[0]-xLoc)+abs(g[1]-yLoc))
+    #         gx, gy = nearest_g
+    #         features.append(1 if gy > yLoc else 0)
+    #         features.append(1 if gx > xLoc else 0)
+    #         features.append(1 if gy < yLoc else 0)
+    #         features.append(1 if gx < xLoc else 0)
+    #     else:
+    #         features.extend([0,0,0,0])
+
+    #     # Ghost distance bucket: close (<=3), medium (<=6), far (1 bit each)
+    #     if ghosts:
+    #         dist = min(abs(g[0]-xLoc)+abs(g[1]-yLoc) for g in ghosts)
+    #         features.append(1 if dist <= 3 else 0)
+    #         features.append(1 if dist <= 6 else 0)
+    #     else:
+    #         features.extend([0,0])
+
+    #     return features  # 14 bits total = 2^14 = 16384 possible states
 
 
 class QLearnAgent(Agent):
 
     def __init__(self,
-                 alpha: float = 0.1,
-                 epsilon: float = 0.1,
-                 gamma: float = 0.9,
+                 alpha: float = 0.5,
+                 epsilon: float = 0.05,
+                 gamma: float = 1.0,
                  maxAttempts: int = 30,
                  numTraining: int = 10):
         """
@@ -335,144 +347,19 @@ class QLearnAgent(Agent):
         # print("computeReward Score: ", score)
 
         key = (
-            # pacman_position,
-            # tuple(ghost_positions), # list -> tuple
-            # str(food_locations), # grid object -> tuples
             tuple(features),
             self.prevAction
         )
-        # if key not in self.Q:
-        #     reward = score if prevScore is None else score - prevScore
-        #     self.Q[key] = reward
-        #     self.N[key] = 1
-        # else:
-        #     reward = (score - prevScore - self.Q[key]) / self.N[key]
-        #     self.Q[key] += reward
-        #     self.N[key] += 1
         reward = score if prevScore is None else score - prevScore
-        reward -= 500 if sum(features[0:3]) == 3 else 0
-        reward -= 5 if score < prevScore else 0
+        reward -= 10 if score < prevScore else 0
         if key not in self.Q:
-            self.Q[key] = reward
+            # self.Q[key] = reward
             self.N[key] = 1
         else:
-            self.Q[key] += reward
+            # self.Q[key] += reward
             self.N[key] += 1
-        # for key in self.Q:
-        #     print("Key:", key)
-        #     print("Q:", self.Q[key])
-        #     print("N:", self.N.get(key))
-        #     print("-" * 40)
-        # print(f"reward: {reward}")
         return reward
 
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def getQValue(self,
-                  state: GameStateFeatures,
-                  action: Directions) -> float:
-        """
-        Args:
-            state: A given state
-            action: Proposed action to take
-
-        Returns:
-            Q(state, action)
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def maxQValue(self, state: GameStateFeatures) -> float:
-        """
-        Args:
-            state: The given state
-
-        Returns:
-            q_value: the maximum estimated Q-value attainable from the state
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def learn(self,
-              state: GameStateFeatures,
-              action: Directions,
-              reward: float,
-              nextState: GameStateFeatures):
-        """
-        Performs a Q-learning update
-
-        Args:
-            state: the initial state
-            action: the action that was took
-            nextState: the resulting state
-            reward: the reward received on this trajectory
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def updateCount(self,
-                    state: GameStateFeatures,
-                    action: Directions):
-        """
-        Updates the stored visitation counts.
-
-        Args:
-            state: Starting state
-            action: Action taken
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def getCount(self,
-                 state: GameStateFeatures,
-                 action: Directions) -> int:
-        """
-        Args:
-            state: Starting state
-            action: Action taken
-
-        Returns:
-            Number of times that the action has been taken in a given state
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
-    def explorationFn(self,
-                      utility: float,
-                      counts: int) -> float:
-        """
-        Computes exploration function.
-        Return a value based on the counts
-
-        HINT: Do a greed-pick or a least-pick
-
-        Args:
-            utility: expected utility for taking some action a in some given state s
-            counts: counts for having taken visited
-
-        Returns:
-            The exploration value
-        """
-        "*** YOUR CODE HERE ***"
-        N = 10
-        if counts < N:
-            return 10.0
-        else:
-            return utility
-        # util.raiseNotDefined()
-
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
     def getAction(self, state: GameState) -> Directions:
         """
         Choose an action to take to maximise reward while
@@ -489,70 +376,37 @@ class QLearnAgent(Agent):
         """
         # The data we have about the state of the game
         stateFeatures = GameStateFeatures(state)
-        # print(f"state: {stateFeatures.state.data}")
 
         legal = stateFeatures.state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
 
-        # logging to help you understand the inputs, feel free to remove
-        # print("Legal moves: ", legal)
-        # print("Pacman position: ", stateFeatures.state.getPacmanPosition())
-        # print("Ghost positions:", stateFeatures.state.getGhostPositions())
-        # print("Food locations: ")
-        # print(stateFeatures.state.getFood())
-        # print("Score: ", stateFeatures.state.getScore())
-        # print(f"Q value: {self.Q}")
-        # print(f"N value: {self.N}")
-        # self.prevScore = state.data.score
-
-        # Now pick what action to take.
-        # The current code shows how to do that but just makes the choice randomly.
-        # self.action = random.choice(legal)
-        # self.prevAction = random.choice(legal)
-        # reward = self.computeReward(self, stateFeatures, stateFeatures)
-        # self.prevScore = stateFeatures.state.getScore()
-
-
         # 1. Compute feature vector for current state
         current_features = tuple(stateFeatures.getFeatureVector())
-        # print(f"current_features: {current_features}")
 
         reward = 0
         # 2. Update Q-value from previous step, if this is not the first move
         if self.prevState is not None:
             reward = self.computeReward(self, self.prevState, stateFeatures)
-            if self.N.get((current_features, self.prevAction), 0) < self.maxAttempts:
-                reward += 50
-            # if self.learned:
-            #     self.learned[-1][3] = current_features
-            #     self.learned[-1][2] = reward
-            # print(f"prev to current reward: {reward}")
-            # actions = [self.Q.get((current_features, a), 0) for a in legal]
-            # print(f"possible actions: {actions}")
             max_q_next = max([self.Q.get((current_features, a), 0) for a in legal])
-            # print(f"max_q_next (for previous): {max_q_next}")
             prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
-            # print(f"prev_key: {prev_key}")
+            if self.N.get(prev_key, 0) < self.maxAttempts:
+                reward += 10
             self.Q[prev_key] = self.Q.get(prev_key, 0) + self.alpha * (reward + self.gamma * max_q_next - self.Q.get(prev_key, 0))
 
         # 3. Choose next action using current state
-        # actions = self.getPossibleActions(current_features)
-        # action = self.chooseAction(current_features, actions)
-        # actions = [l for l in self.learned if l[0] == current_features and l[1] in legal]
-        # print(f"current state actions: {actions}")
-        # if actions:
         if random.random() < self.epsilon:
             action = random.choice(legal)
         else:
             action = max(legal, key=lambda a: self.Q.get((current_features, a), 0))
+            # action = max(legal, key=lambda a: (self.Q.get((current_features, a), 0) + 10 if self.N.get((current_features, a), 0) < self.maxAttempts else 0))
         # else:
-        #     action = random.choice(legal)
-
-        # self.learned.append(
-        #     [current_features, action, None, None]
-        # )
-
+        #     max_q = max([self.Q.get((current_features, a), 0) for a in legal])
+        #     # Find all actions that result in that maximum Q-value
+        #     best_actions = [a for a in legal if self.Q.get((current_features, a), 0) == max_q]
+        #     # Break ties randomly
+        #     action = random.choice(best_actions)
+        
         # 4. Remember current state and chosen action for next update
         self.prevState = stateFeatures
         self.prevAction = action
@@ -580,11 +434,8 @@ class QLearnAgent(Agent):
             if prev_key not in self.N:
                 self.N[prev_key] = 0
             self.N[prev_key] += 1
-
-            # self.learned[-1][3] = current_features
-            # self.learned[-1][2] = reward
         
-        print(f"Game {self.getEpisodesSoFar()} just ended!")
+        # print(f"Game {self.getEpisodesSoFar()} just ended!")
 
         # Keep track of the number of games played, and set learning
         # parameters to zero when we are done with the pre-set number
