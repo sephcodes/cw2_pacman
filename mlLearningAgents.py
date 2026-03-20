@@ -58,6 +58,7 @@ class GameStateFeatures:
     def __hash__(self):
         return hash(self.state)
     
+    # using this from coursework 1
     def walls(self, state):
         # Returns a list of (x, y) pairs of wall positions
         #
@@ -75,6 +76,7 @@ class GameStateFeatures:
                     wallList.append((i, j))            
         return wallList
     
+    # using this from coursework 1
     def inFront(self, object, facing, state):
         # Returns true if the object is along the corridor in the
         # direction of the parameter "facing" before a wall gets in the
@@ -133,6 +135,7 @@ class GameStateFeatures:
                     next = (next[0] - 1, pacman_y)
             return False
     
+    # using this from coursework 1 with slight modifications
     def getFeatureVector(self):
         # Returns local information about the environment in the form of a
         # feature vector
@@ -159,26 +162,6 @@ class GameStateFeatures:
         else:
             features.append(0)
 
-        # Is there food around Pacman?
-        # foodGrid = self.state.getFood()
-        # if foodGrid[xLoc][yLoc+1] == True:
-        #     features.append(1)
-        # else:
-        #     features.append(0)
-        # if foodGrid[xLoc+1][yLoc] == True:
-        #     features.append(1)
-        # else:
-        #     features.append(0)
-        # if foodGrid[xLoc][yLoc-1] == True:
-        #     features.append(1)
-        # else:
-        #     features.append(0)
-        # if foodGrid[xLoc-1][yLoc] == True:
-        #     features.append(1)
-        # else:
-        #     features.append(0)
-
-        # Are there ghosts in any of the eight squares around Pacman
         ghosts = self.state.getGhostPositions()
         facing = self.state.getPacmanState().configuration.direction
         visibleGhost = False
@@ -193,7 +176,7 @@ class GameStateFeatures:
         else:
             features.append(0)
 
-        # encoded rather than sparse
+        # reduced this feature space to 4 (up, down, left, right) rather than 8 (including diagonals)
         for x, y in [(0,1),(1,0),(0,-1),(-1,0)]:
             features.append(1 if (xLoc+x, yLoc+y) in ghosts else 0)
 
@@ -201,6 +184,7 @@ class GameStateFeatures:
         nearby = any(abs(g[0]-xLoc)+abs(g[1]-yLoc) <= 2 for g in ghosts)
         features.append(1 if nearby else 0)
 
+        # replaced food metric in cw1 to find nearest food rather than "is there food around pacman"
         foodGrid = self.state.getFood()
         food_list = foodGrid.asList()
         if food_list:
@@ -298,17 +282,19 @@ class QLearnAgent(Agent):
         "*** YOUR CODE HERE ***"
         # util.raiseNotDefined()
         features = startState.getFeatureVector()
-        # print(f"features: {features}")
         score = endState.state.getScore()
         prevScore = startState.state.getScore()
-        # print("computeReward Score: ", score)
 
+        # for the state we were just in and the action we just took, compute the reward
         key = (
             tuple(features),
             self.prevAction
         )
+        # reward is just the score change
         reward = score if prevScore is None else score - prevScore
+        # game already does -1 for each step, this penalizes long games even more with -10
         reward -= 10 if score < prevScore else 0
+        # record number of times in this state and action
         if key not in self.Q:
             # self.Q[key] = reward
             self.N[key] = 1
@@ -338,20 +324,23 @@ class QLearnAgent(Agent):
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
 
-        # 1. Compute feature vector for current state
+        # 1. compute feature vector for current state
         current_features = tuple(stateFeatures.getFeatureVector())
 
         reward = 0
-        # 2. Update Q-value from previous step, if this is not the first move
+        # 2. update Q-value from previous step, if this is not the first move
         if self.prevState is not None:
             reward = self.computeReward(self, self.prevState, stateFeatures)
             max_q_next = max([self.Q.get((current_features, a), 0) for a in legal])
+            # key is previous state and action to update Q-value for that state and action pair
             prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
+            # encourage exploration with extra reward
             if self.N.get(prev_key, 0) < self.maxAttempts:
                 reward += 10
+            # update Q-value for previous state and action pair using reward and max future (current) Q-value
             self.Q[prev_key] = self.Q.get(prev_key, 0) + self.alpha * (reward + self.gamma * max_q_next - self.Q.get(prev_key, 0))
 
-        # 3. Choose next action using current state
+        # 3. choose next action using max current state and legal actions with epsilon-greedy exploration
         if random.random() < self.epsilon:
             action = random.choice(legal)
         else:
@@ -364,7 +353,7 @@ class QLearnAgent(Agent):
         #     # Break ties randomly
         #     action = random.choice(best_actions)
         
-        # 4. Remember current state and chosen action for next update
+        # 4. remember current state and chosen action for next update
         self.prevState = stateFeatures
         self.prevAction = action
         return self.prevAction
