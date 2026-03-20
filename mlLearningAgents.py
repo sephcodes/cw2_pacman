@@ -216,49 +216,6 @@ class GameStateFeatures:
         features.append(sum(np.array(self.state.getFood().data).flatten()))
             
         return features
-    # def getFeatureVector(self):
-    #     features = []
-    #     xLoc = self.state.getPacmanPosition()[0]
-    #     yLoc = self.state.getPacmanPosition()[1]
-    #     wallGrid = self.state.getWalls()
-    #     ghosts = self.state.getGhostPositions()
-
-    #     # walls around pacman
-    #     for dx, dy in [(0,1),(1,0),(0,-1),(-1,0)]:
-    #         features.append(1 if wallGrid[xLoc+dx][yLoc+dy] else 0)
-
-    #     # direction to nearest food (4 bits)
-    #     food_list = self.state.getFood().asList()
-    #     if food_list:
-    #         nearest = min(food_list, key=lambda f: abs(f[0]-xLoc)+abs(f[1]-yLoc))  # nearest food in any direction or distance
-    #         fx, fy = nearest
-    #         features.append(1 if fy > yLoc else 0)
-    #         features.append(1 if fx > xLoc else 0)
-    #         features.append(1 if fy < yLoc else 0)
-    #         features.append(1 if fx < xLoc else 0)
-    #     else:
-    #         features.extend([0,0,0,0])
-
-    #     # Direction to nearest ghost (4 bits)
-    #     if ghosts:
-    #         nearest_g = min(ghosts, key=lambda g: abs(g[0]-xLoc)+abs(g[1]-yLoc))
-    #         gx, gy = nearest_g
-    #         features.append(1 if gy > yLoc else 0)
-    #         features.append(1 if gx > xLoc else 0)
-    #         features.append(1 if gy < yLoc else 0)
-    #         features.append(1 if gx < xLoc else 0)
-    #     else:
-    #         features.extend([0,0,0,0])
-
-    #     # Ghost distance bucket: close (<=3), medium (<=6), far (1 bit each)
-    #     if ghosts:
-    #         dist = min(abs(g[0]-xLoc)+abs(g[1]-yLoc) for g in ghosts)
-    #         features.append(1 if dist <= 3 else 0)
-    #         features.append(1 if dist <= 6 else 0)
-    #     else:
-    #         features.extend([0,0])
-
-    #     return features  # 14 bits total = 2^14 = 16384 possible states
 
 
 class QLearnAgent(Agent):
@@ -435,7 +392,7 @@ class QLearnAgent(Agent):
                 self.N[prev_key] = 0
             self.N[prev_key] += 1
         
-        # print(f"Game {self.getEpisodesSoFar()} just ended!")
+        print(f"Game {self.getEpisodesSoFar()} just ended!")
 
         # Keep track of the number of games played, and set learning
         # parameters to zero when we are done with the pre-set number
