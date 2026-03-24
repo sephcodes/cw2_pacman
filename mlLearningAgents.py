@@ -202,12 +202,13 @@ class GameStateFeatures:
         return features
 
 
+
 class QLearnAgent(Agent):
 
     def __init__(self,
-                 alpha: float = 0.5,
+                 alpha: float = 0.2,
                  epsilon: float = 0.05,
-                 gamma: float = 1.0,
+                 gamma: float = 0.8,
                  maxAttempts: int = 30,
                  numTraining: int = 10):
         """
@@ -225,19 +226,19 @@ class QLearnAgent(Agent):
             numTraining: number of training episodes
         """
         super().__init__()
+        
         self.alpha = float(alpha)
         self.epsilon = float(epsilon)
         self.gamma = float(gamma)
         self.maxAttempts = int(maxAttempts)
         self.numTraining = int(numTraining)
-        # Count the number of games we have played
+        
         self.episodesSoFar = 0
         self.Q = {}
         self.N = {}
         self.prevState = None
         self.prevAction = None
         self.prevScore = None
-        # self.learned = []
 
     # Accessor functions for the variable episodesSoFar controlling learning
     def incrementEpisodesSoFar(self):
@@ -268,9 +269,8 @@ class QLearnAgent(Agent):
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
     @staticmethod
-    def computeReward(self,
-                      startState: GameState,
-                      endState: GameState):
+    def computeReward(startState: GameState,
+                      endState: GameState) -> float:
         """
         Args:
             startState: A starting state
@@ -280,29 +280,176 @@ class QLearnAgent(Agent):
             The reward assigned for the given trajectory
         """
         "*** YOUR CODE HERE ***"
-        # util.raiseNotDefined()
+
         features = startState.getFeatureVector()
         score = endState.state.getScore()
         prevScore = startState.state.getScore()
 
-        # for the state we were just in and the action we just took, compute the reward
-        key = (
-            tuple(features),
-            self.prevAction
-        )
-        # reward is just the score change
         reward = score if prevScore is None else score - prevScore
-        # game already does -1 for each step, this penalizes long games even more with -10
         reward -= 10 if score < prevScore else 0
-        # record number of times in this state and action
-        if key not in self.Q:
-            # self.Q[key] = reward
-            self.N[key] = 1
-        else:
-            # self.Q[key] += reward
-            self.N[key] += 1
+
         return reward
 
+
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
+    def getQValue(self,
+                  state: GameStateFeatures,
+                  action: Directions) -> float:
+        """
+        Args:
+            state: A given state
+            action: Proposed action to take
+
+        Returns:
+            Q(state, action)
+        """
+        "*** YOUR CODE HERE ***"
+        
+        features = state.getFeatureVector()
+        key = (
+            tuple(features),
+            action
+        )
+        if key not in self.Q:
+            self.Q[key] = 0
+            self.N[key] = 0
+
+        return self.Q[key]
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
+    def maxQValue(self, state: GameStateFeatures) -> float:
+        """
+        Args:
+            state: The given state
+
+        Returns:
+            q_value: the maximum estimated Q-value attainable from the state
+        """
+        "*** YOUR CODE HERE ***"
+        features = state.getFeatureVector()
+        legal = state.state.getLegalPacmanActions()
+        if Directions.STOP in legal:
+            legal.remove(Directions.STOP)
+        
+        maxQValue = -float('inf')
+
+        for action in legal:
+            key = (
+                tuple(features),
+                action
+            )
+            qValue = self.getQValue(state, action)
+            if (qValue>maxQValue):
+                maxQValue = qValue
+        
+        return maxQValue
+
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
+    def learn(self,
+              state: GameStateFeatures,
+              action: Directions,
+              reward: float,
+              nextState: GameStateFeatures):
+        """
+        Performs a Q-learning update
+
+        Args:
+            state: the initial state
+            action: the action that was took
+            nextState: the resulting state
+            reward: the reward received on this trajectory
+        """
+        "*** YOUR CODE HERE ***"
+        features = tuple(state.getFeatureVector())
+        key = (features, action)
+
+        maxQNext = self.maxQValue(nextState)
+        
+        oldQ = self.getQValue(state, action)
+
+        # Q-learning update
+        self.Q[key] = oldQ + self.alpha * (reward + self.gamma * maxQNext - oldQ)
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
+    def updateCount(self,
+                    state: GameStateFeatures,
+                    action: Directions):
+        """
+        Updates the stored visitation counts.
+
+        Args:
+            state: Starting state
+            action: Action taken
+        """
+        "*** YOUR CODE HERE ***"
+        features = tuple(state.getFeatureVector())
+        key = (
+            tuple(features),
+            action
+        )
+        if key not in self.Q:
+            self.N[key] = 1
+        else:
+            self.N[key] += 1
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
+    def getCount(self,
+                 state: GameStateFeatures,
+                 action: Directions) -> int:
+        """
+        Args:
+            state: Starting state
+            action: Action taken
+
+        Returns:
+            Number of times that the action has been taken in a given state
+        """
+        "*** YOUR CODE HERE ***"
+        
+        features = tuple(state.getFeatureVector())
+        key = (
+            tuple(features),
+            action
+        )
+        if key not in self.Q:
+            self.Q[key] = 0
+            self.N[key] = 0
+        
+        return self.N[key]
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
+    def explorationFn(self,
+                      utility: float,
+                      counts: int) -> float:
+        """
+        Computes exploration function.
+        Return a value based on the counts
+
+        HINT: Do a greed-pick or a least-pick
+
+        Args:
+            utility: expected utility for taking some action a in some given state s
+            counts: counts for having taken visited
+
+        Returns:
+            The exploration value
+        """
+        "*** YOUR CODE HERE ***"
+        if(counts==0):
+            return float('inf')
+        else:
+            return utility
+
+    # WARNING: You will be tested on the functionality of this method
+    # DO NOT change the function signature
     def getAction(self, state: GameState) -> Directions:
         """
         Choose an action to take to maximise reward while
@@ -317,46 +464,38 @@ class QLearnAgent(Agent):
         Returns:
             The action to take
         """
+        
         # The data we have about the state of the game
         stateFeatures = GameStateFeatures(state)
+        # print(f"state: {stateFeatures.state.data}")
 
+        # 1. Learn from previous action (If Any)
+        if self.prevState is not None:
+            prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
+            reward = self.computeReward(self.prevState, stateFeatures)
+            self.updateCount(self.prevState, self.prevAction)
+            if self.getCount(self.prevState, self.prevAction) < self.maxAttempts:
+                reward += 10
+            self.learn(self.prevState, self.prevAction, reward, stateFeatures)
+
+
+        # 3. Choose next action using current state
+        
         legal = stateFeatures.state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
 
-        # 1. compute feature vector for current state
-        current_features = tuple(stateFeatures.getFeatureVector())
-
-        reward = 0
-        # 2. update Q-value from previous step, if this is not the first move
-        if self.prevState is not None:
-            reward = self.computeReward(self, self.prevState, stateFeatures)
-            max_q_next = max([self.Q.get((current_features, a), 0) for a in legal])
-            # key is previous state and action to update Q-value for that state and action pair
-            prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
-            # encourage exploration with extra reward
-            if self.N.get(prev_key, 0) < self.maxAttempts:
-                reward += 10
-            # update Q-value for previous state and action pair using reward and max future (current) Q-value
-            self.Q[prev_key] = self.Q.get(prev_key, 0) + self.alpha * (reward + self.gamma * max_q_next - self.Q.get(prev_key, 0))
-
-        # 3. choose next action using max current state and legal actions with epsilon-greedy exploration
         if random.random() < self.epsilon:
             action = random.choice(legal)
         else:
-            action = max(legal, key=lambda a: self.Q.get((current_features, a), 0))
-            # action = max(legal, key=lambda a: (self.Q.get((current_features, a), 0) + 10 if self.N.get((current_features, a), 0) < self.maxAttempts else 0))
-        # else:
-        #     max_q = max([self.Q.get((current_features, a), 0) for a in legal])
-        #     # Find all actions that result in that maximum Q-value
-        #     best_actions = [a for a in legal if self.Q.get((current_features, a), 0) == max_q]
-        #     # Break ties randomly
-        #     action = random.choice(best_actions)
-        
-        # 4. remember current state and chosen action for next update
+            action = max(legal, key=lambda a: 
+                self.explorationFn(self.getQValue(stateFeatures, a), self.getCount(stateFeatures, a)))
+
+        # 4. Store current state and action for the next learning step
         self.prevState = stateFeatures
         self.prevAction = action
-        return self.prevAction
+
+        return action
 
     def final(self, state: GameState):
         """
@@ -366,13 +505,15 @@ class QLearnAgent(Agent):
         Args:
             state: the final game state
         """
+        print(f"Game {self.getEpisodesSoFar()} just ended!")
+
+        stateFeatures = GameStateFeatures(state)
+        # print(f"state: {stateFeatures.state.data}")
+
+        # 1. Learn from previous action (If Any)
         if self.prevState is not None:
-            # compute reward for final transition
-            stateFeatures = GameStateFeatures(state)
-            reward = stateFeatures.state.getScore() - self.prevState.state.getScore()
-
             prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
-
+            reward = self.computeReward(self.prevState, stateFeatures)
             # no future Q term because terminal state
             self.Q[prev_key] = self.Q.get(prev_key, 0) + self.alpha * (
                 reward - self.Q.get(prev_key, 0)
@@ -381,8 +522,6 @@ class QLearnAgent(Agent):
                 self.N[prev_key] = 0
             self.N[prev_key] += 1
         
-        print(f"Game {self.getEpisodesSoFar()} just ended!")
-
         # Keep track of the number of games played, and set learning
         # parameters to zero when we are done with the pre-set number
         # of training episodes
@@ -395,3 +534,4 @@ class QLearnAgent(Agent):
 
         self.prevState = None
         self.prevAction = None
+    
