@@ -36,9 +36,6 @@ class GameStateFeatures:
     """
     Wrapper class around a game state where you can extract
     useful information for your Q-learning algorithm
-
-    WARNING: We will use this class to test your code, but the functionality
-    of this class will not be tested itself
     """
 
     def __init__(self, state: GameState):
@@ -55,7 +52,9 @@ class GameStateFeatures:
         return hash(self.state)
 
     def walls(self, state):
-        # Returns a list of (x, y) pairs of wall positions
+        """
+        Returns a list of (x, y) pairs of wall positions
+        """
         
         wallList= []
         wallGrid = state.getWalls()
@@ -68,11 +67,16 @@ class GameStateFeatures:
         return wallList
 
     def inFront(self, obj, facing, state):
+        """
+        Checks if an object is in front of Pacman in the direction he is facing, without any walls in between
+        """
+
         pacman = state.getPacmanPosition()
         pacman_x = pacman[0]
         pacman_y = pacman[1]
         wallList = self.walls(state)
 
+        # Check north until we hit a wall, looking for the object
         if facing == Directions.NORTH:
             nxt = (pacman_x, pacman_y + 1)
             while nxt not in wallList:
@@ -81,6 +85,7 @@ class GameStateFeatures:
                 nxt = (pacman_x, nxt[1] + 1)
             return False
 
+        # Check south until we hit a wall, looking for the object
         if facing == Directions.SOUTH:
             nxt = (pacman_x, pacman_y - 1)
             while nxt not in wallList:
@@ -89,6 +94,7 @@ class GameStateFeatures:
                 nxt = (pacman_x, nxt[1] - 1)
             return False
 
+        # Check east until we hit a wall, looking for the object
         if facing == Directions.EAST:
             nxt = (pacman_x + 1, pacman_y)
             while nxt not in wallList:
@@ -97,6 +103,7 @@ class GameStateFeatures:
                 nxt = (nxt[0] + 1, pacman_y)
             return False
 
+        # Check west until we hit a wall, looking for the object
         if facing == Directions.WEST:
             nxt = (pacman_x - 1, pacman_y)
             while nxt not in wallList:
