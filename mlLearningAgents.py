@@ -310,6 +310,8 @@ class QLearnAgent(Agent):
         return action
 
     def final(self, state: GameState):
+        """Called at the end of each game"""
+
         print(f"Game {self.getEpisodesSoFar()} just ended!")
 
         stateFeatures = GameStateFeatures(state)
@@ -324,6 +326,7 @@ class QLearnAgent(Agent):
 
         self.incrementEpisodesSoFar()
 
+        # Check if we are done training
         if self.getEpisodesSoFar() == self.getNumTraining():
             msg = 'Training Done (turning off epsilon and alpha)'
             print('%s\n%s' % (msg, '-' * len(msg)))
