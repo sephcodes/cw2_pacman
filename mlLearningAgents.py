@@ -12,7 +12,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -29,7 +29,6 @@ import random
 
 from pacman import Directions, GameState
 from pacman_utils.game import Agent
-from pacman_utils import util
 import numpy as np
 
 
@@ -47,9 +46,6 @@ class GameStateFeatures:
         Args:
             state: A given game state object
         """
-
-        "*** YOUR CODE HERE ***"
-        # util.raiseNotDefined()
         self.state = state
 
     def __eq__(self, other):
@@ -57,14 +53,9 @@ class GameStateFeatures:
 
     def __hash__(self):
         return hash(self.state)
-    
-    # using this from coursework 1
+
     def walls(self, state):
         # Returns a list of (x, y) pairs of wall positions
-        #
-        # This version just returns all the current wall locations
-        # extracted from the state data.  In later versions, this will be
-        # restricted by distance, and include some uncertainty.
         
         wallList= []
         wallGrid = state.getWalls()
@@ -72,172 +63,127 @@ class GameStateFeatures:
         height = wallGrid.height
         for i in range(width):
             for j in range(height):
-                if wallGrid[i][j] == True:
-                    wallList.append((i, j))            
+                if wallGrid[i][j]:
+                    wallList.append((i, j))
         return wallList
-    
-    # using this from coursework 1
-    def inFront(self, object, facing, state):
-        # Returns true if the object is along the corridor in the
-        # direction of the parameter "facing" before a wall gets in the
-        # way.
-        
+
+    def inFront(self, obj, facing, state):
         pacman = state.getPacmanPosition()
         pacman_x = pacman[0]
         pacman_y = pacman[1]
         wallList = self.walls(state)
 
-        # If Pacman is facing North
         if facing == Directions.NORTH:
-            # Check if the object is anywhere due North of Pacman before a
-            # wall intervenes.
-            next = (pacman_x, pacman_y + 1)
-            while not next in wallList:
-                if next == object:
+            nxt = (pacman_x, pacman_y + 1)
+            while nxt not in wallList:
+                if nxt == obj:
                     return True
-                else:
-                    next = (pacman_x, next[1] + 1)
+                nxt = (pacman_x, nxt[1] + 1)
             return False
 
-        # If Pacman is facing South
         if facing == Directions.SOUTH:
-            # Check if the object is anywhere due North of Pacman before a
-            # wall intervenes.
-            next = (pacman_x, pacman_y - 1)
-            while not next in wallList:
-                if next == object:
+            nxt = (pacman_x, pacman_y - 1)
+            while nxt not in wallList:
+                if nxt == obj:
                     return True
-                else:
-                    next = (pacman_x, next[1] - 1)
+                nxt = (pacman_x, nxt[1] - 1)
             return False
 
-        # If Pacman is facing East
         if facing == Directions.EAST:
-            # Check if the object is anywhere due East of Pacman before a
-            # wall intervenes.
-            next = (pacman_x + 1, pacman_y)
-            while not next in wallList:
-                if next == object:
+            nxt = (pacman_x + 1, pacman_y)
+            while nxt not in wallList:
+                if nxt == obj:
                     return True
-                else:
-                    next = (next[0] + 1, pacman_y)
+                nxt = (nxt[0] + 1, pacman_y)
             return False
-        
-        # If Pacman is facing West
+
         if facing == Directions.WEST:
-            # Check if the object is anywhere due West of Pacman before a
-            # wall intervenes.
-            next = (pacman_x - 1, pacman_y)
-            while not next in wallList:
-                if next == object:
+            nxt = (pacman_x - 1, pacman_y)
+            while nxt not in wallList:
+                if nxt == obj:
                     return True
-                else:
-                    next = (next[0] - 1, pacman_y)
+                nxt = (nxt[0] - 1, pacman_y)
             return False
-    
+
+        return False
+
     # using this from coursework 1 with slight modifications
     def getFeatureVector(self):
-        # Returns local information about the environment in the form of a
-        # feature vector
+        # Returns local information about the environment in the form of a feature vector
         features = []
-        xLoc = self.state.getPacmanPosition()[0]
-        yLoc = self.state.getPacmanPosition()[1]
+        xLoc, yLoc = self.state.getPacmanPosition()
 
-        #Are there walls around Pacman?
+        # Walls around Pacman: N, E, S, W
         wallGrid = self.state.getWalls()
-        if wallGrid[xLoc][yLoc+1] == True:
-            features.append(1)
-        else:
-            features.append(0)
-        if wallGrid[xLoc+1][yLoc] == True:
-            features.append(1)
-        else:
-            features.append(0)
-        if wallGrid[xLoc][yLoc-1] == True:
-            features.append(1)
-        else:
-            features.append(0)
-        if wallGrid[xLoc-1][yLoc] == True:
-            features.append(1)
-        else:
-            features.append(0)
+        features.append(1 if wallGrid[xLoc][yLoc + 1] else 0) # North wall
+        features.append(1 if wallGrid[xLoc + 1][yLoc] else 0) # East wall
+        features.append(1 if wallGrid[xLoc][yLoc - 1] else 0) # South wall
+        features.append(1 if wallGrid[xLoc - 1][yLoc] else 0) # West wall
 
         ghosts = self.state.getGhostPositions()
         facing = self.state.getPacmanState().configuration.direction
-        visibleGhost = False
+        # is there a ghost in front of pacman
+        visibleGhost = any(self.inFront(g, facing, self.state) for g in ghosts)
+        features.append(1 if visibleGhost else 0)
 
-        # Is there a ghost in front of Pacman?
-        for i in range(len(ghosts)):
-            if self.inFront(ghosts[i], facing, self.state):
-                visibleGhost = True
-
-        if visibleGhost:
-            features.append(1)
-        else:
-            features.append(0)
-
+        # for calculating if ghosts are around pacman
         # reduced this feature space to 4 (up, down, left, right) rather than 8 (including diagonals)
-        for x, y in [(0,1),(1,0),(0,-1),(-1,0)]:
-            features.append(1 if (xLoc+x, yLoc+y) in ghosts else 0)
+        for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+            features.append(1 if (xLoc + dx, yLoc + dy) in ghosts else 0)
 
-        # ghost nearby (within two spaces)
-        nearby = any(abs(g[0]-xLoc)+abs(g[1]-yLoc) <= 2 for g in ghosts)
+        # Ghost nearby (Manhattan distance <= 2)
+        nearby = any(abs(g[0] - xLoc) + abs(g[1] - yLoc) <= 2 for g in ghosts)
         features.append(1 if nearby else 0)
 
         # replaced food metric in cw1 to find nearest food rather than "is there food around pacman"
         foodGrid = self.state.getFood()
         food_list = foodGrid.asList()
         if food_list:
-            nearest = min(food_list, key=lambda f: abs(f[0]-xLoc) + abs(f[1]-yLoc)) # nearest food in any direction
+            nearest = min(food_list, key=lambda f: abs(f[0] - xLoc) + abs(f[1] - yLoc)) # nearest food in any direction including diagonals
             fx, fy = nearest
-            features.append(1 if fy > yLoc else 0)  # food is North
-            features.append(1 if fx > xLoc else 0)  # food is East
-            features.append(1 if fy < yLoc else 0)  # food is South
-            features.append(1 if fx < xLoc else 0)  # food is West
+            features.append(1 if fy > yLoc else 0) # food North
+            features.append(1 if fx > xLoc else 0) # food East
+            features.append(1 if fy < yLoc else 0) # food South
+            features.append(1 if fx < xLoc else 0) # food West
         else:
             features.extend([0, 0, 0, 0])
 
-        features.append(sum(np.array(self.state.getFood().data).flatten()))
-            
+        # feature for the number of remaining foodcrumbs
+        features.append(int(np.sum(np.array(self.state.getFood().data))))
+
         return features
+
 
 
 class QLearnAgent(Agent):
 
     def __init__(self,
-                 alpha: float = 0.5,
+                 alpha: float = 0.2,
                  epsilon: float = 0.05,
-                 gamma: float = 1.0,
+                 gamma: float = 0.8,
                  maxAttempts: int = 30,
                  numTraining: int = 10):
         """
-        These values are either passed from the command line (using -a alpha=0.5,...)
-        or are set to the default values above.
-
-        The given hyperparameters are suggestions and are not necessarily optimal
-        so feel free to experiment with them.
-
         Args:
             alpha: learning rate
             epsilon: exploration rate
             gamma: discount factor
-            maxAttempts: How many times to try each action in each state
+            maxAttempts: how many times to try each action in each state
             numTraining: number of training episodes
         """
         super().__init__()
+        
         self.alpha = float(alpha)
         self.epsilon = float(epsilon)
         self.gamma = float(gamma)
         self.maxAttempts = int(maxAttempts)
         self.numTraining = int(numTraining)
-        # Count the number of games we have played
+        
         self.episodesSoFar = 0
         self.Q = {}
         self.N = {}
         self.prevState = None
         self.prevAction = None
-        self.prevScore = None
-        # self.learned = []
 
     # Accessor functions for the variable episodesSoFar controlling learning
     def incrementEpisodesSoFar(self):
@@ -265,12 +211,9 @@ class QLearnAgent(Agent):
     def getMaxAttempts(self) -> int:
         return self.maxAttempts
 
-    # WARNING: You will be tested on the functionality of this method
-    # DO NOT change the function signature
     @staticmethod
-    def computeReward(self,
-                      startState: GameState,
-                      endState: GameState):
+    def computeReward(startState: GameState,
+                      endState: GameState) -> float:
         """
         Args:
             startState: A starting state
@@ -280,113 +223,129 @@ class QLearnAgent(Agent):
             The reward assigned for the given trajectory
         """
         "*** YOUR CODE HERE ***"
-        # util.raiseNotDefined()
-        features = startState.getFeatureVector()
-        score = endState.state.getScore()
-        prevScore = startState.state.getScore()
+        # score is calculated as difference between current score and previous score
+        return endState.state.getScore() - startState.state.getScore()
 
-        # for the state we were just in and the action we just took, compute the reward
-        key = (
-            tuple(features),
-            self.prevAction
-        )
-        # reward is just the score change
-        reward = score if prevScore is None else score - prevScore
-        # game already does -1 for each step, this penalizes long games even more with -10
-        reward -= 10 if score < prevScore else 0
-        # record number of times in this state and action
-        if key not in self.Q:
-            # self.Q[key] = reward
-            self.N[key] = 1
-        else:
-            # self.Q[key] += reward
-            self.N[key] += 1
-        return reward
-
-    def getAction(self, state: GameState) -> Directions:
+    def getQValue(self,
+                  state: GameStateFeatures,
+                  action: Directions) -> float:
         """
-        Choose an action to take to maximise reward while
-        balancing gathering data for learning
-
-        If you wish to use epsilon-greedy exploration, implement it in this method.
-        HINT: look at pacman_utils.util.flipCoin
-
         Args:
-            state: the current state
+            state: A given state
+            action: Proposed action to take
 
         Returns:
-            The action to take
+            Q(state, action)
         """
-        # The data we have about the state of the game
+        "*** YOUR CODE HERE ***"
+        # get Q value for this state and action, if note available, we return 0
+        key = (tuple(state.getFeatureVector()), action)
+        return self.Q.get(key, 0.0)
+
+    def maxQValue(self, state: GameStateFeatures) -> float:
+        """
+        Args:
+            state: The given state
+
+        Returns:
+            q_value: the maximum estimated Q-value attainable from the state
+        """
+        "*** YOUR CODE HERE ***"
+        legal = state.state.getLegalPacmanActions()
+        if Directions.STOP in legal:
+            legal.remove(Directions.STOP)
+
+        if not legal:
+            return 0.0
+
+        # among the legal actions for this state, we find the highest q value, then we assign return that max Q value
+        return max(self.getQValue(state, action) for action in legal)
+
+    def learn(self,
+              state: GameStateFeatures,
+              action: Directions,
+              reward: float,
+              nextState: GameStateFeatures):
+        key = (tuple(state.getFeatureVector()), action)
+        oldQ = self.Q.get(key, 0.0)
+        sample = reward + self.gamma * self.maxQValue(nextState)
+        self.Q[key] = oldQ + self.alpha * (sample - oldQ)
+
+    def updateCount(self,
+                    state: GameStateFeatures,
+                    action: Directions):
+        key = (tuple(state.getFeatureVector()), action)
+        self.N[key] = self.N.get(key, 0) + 1
+
+    def getCount(self,
+                 state: GameStateFeatures,
+                 action: Directions) -> int:
+        key = (tuple(state.getFeatureVector()), action)
+        return self.N.get(key, 0)
+
+    def explorationFn(self,
+                      utility: float,
+                      counts: int) -> float:
+        """
+        Encourage trying actions with low visitation counts, but smoothly.
+        """
+        if counts < self.maxAttempts:
+            return utility + 5.0 / (counts + 1)
+        return utility
+
+    def getAction(self, state: GameState) -> Directions:
         stateFeatures = GameStateFeatures(state)
+
+        # Learn from previous transition
+        if self.prevState is not None and self.prevAction is not None:
+            reward = self.computeReward(self.prevState, stateFeatures)
+            self.updateCount(self.prevState, self.prevAction)
+            self.learn(self.prevState, self.prevAction, reward, stateFeatures)
 
         legal = stateFeatures.state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
 
-        # 1. compute feature vector for current state
-        current_features = tuple(stateFeatures.getFeatureVector())
+        if not legal:
+            return Directions.STOP
 
-        reward = 0
-        # 2. update Q-value from previous step, if this is not the first move
-        if self.prevState is not None:
-            reward = self.computeReward(self, self.prevState, stateFeatures)
-            max_q_next = max([self.Q.get((current_features, a), 0) for a in legal])
-            # key is previous state and action to update Q-value for that state and action pair
-            prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
-            # encourage exploration with extra reward
-            if self.N.get(prev_key, 0) < self.maxAttempts:
-                reward += 10
-            # update Q-value for previous state and action pair using reward and max future (current) Q-value
-            self.Q[prev_key] = self.Q.get(prev_key, 0) + self.alpha * (reward + self.gamma * max_q_next - self.Q.get(prev_key, 0))
-
-        # 3. choose next action using max current state and legal actions with epsilon-greedy exploration
+        # Epsilon-greedy
         if random.random() < self.epsilon:
             action = random.choice(legal)
         else:
-            action = max(legal, key=lambda a: self.Q.get((current_features, a), 0))
-            # action = max(legal, key=lambda a: (self.Q.get((current_features, a), 0) + 10 if self.N.get((current_features, a), 0) < self.maxAttempts else 0))
-        # else:
-        #     max_q = max([self.Q.get((current_features, a), 0) for a in legal])
-        #     # Find all actions that result in that maximum Q-value
-        #     best_actions = [a for a in legal if self.Q.get((current_features, a), 0) == max_q]
-        #     # Break ties randomly
-        #     action = random.choice(best_actions)
-        
-        # 4. remember current state and chosen action for next update
+            scored_actions = []
+            best_value = float('-inf')
+
+            for a in legal:
+                value = self.explorationFn(self.getQValue(stateFeatures, a),
+                                           self.getCount(stateFeatures, a))
+                scored_actions.append((a, value))
+                if value > best_value:
+                    best_value = value
+
+            best_actions = [a for a, v in scored_actions if v == best_value]
+            action = random.choice(best_actions)
+
         self.prevState = stateFeatures
         self.prevAction = action
-        return self.prevAction
+
+        return action
 
     def final(self, state: GameState):
-        """
-        Handle the end of episodes.
-        This is called by the game after a win or a loss.
-
-        Args:
-            state: the final game state
-        """
-        if self.prevState is not None:
-            # compute reward for final transition
-            stateFeatures = GameStateFeatures(state)
-            reward = stateFeatures.state.getScore() - self.prevState.state.getScore()
-
-            prev_key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
-
-            # no future Q term because terminal state
-            self.Q[prev_key] = self.Q.get(prev_key, 0) + self.alpha * (
-                reward - self.Q.get(prev_key, 0)
-            )
-            if prev_key not in self.N:
-                self.N[prev_key] = 0
-            self.N[prev_key] += 1
-        
         print(f"Game {self.getEpisodesSoFar()} just ended!")
 
-        # Keep track of the number of games played, and set learning
-        # parameters to zero when we are done with the pre-set number
-        # of training episodes
+        stateFeatures = GameStateFeatures(state)
+
+        # Final terminal update
+        if self.prevState is not None and self.prevAction is not None:
+            reward = self.computeReward(self.prevState, stateFeatures)
+            key = (tuple(self.prevState.getFeatureVector()), self.prevAction)
+            oldQ = self.Q.get(key, 0.0)
+            self.Q[key] = oldQ + self.alpha * (reward - oldQ)
+            self.N[key] = self.N.get(key, 0) + 1
+
         self.incrementEpisodesSoFar()
+
         if self.getEpisodesSoFar() == self.getNumTraining():
             msg = 'Training Done (turning off epsilon and alpha)'
             print('%s\n%s' % (msg, '-' * len(msg)))
@@ -395,3 +354,4 @@ class QLearnAgent(Agent):
 
         self.prevState = None
         self.prevAction = None
+    
