@@ -211,18 +211,20 @@ class QLearnAgent(Agent):
     @staticmethod
     def computeReward(startState: GameState,
                       endState: GameState) -> float:
-        """
-        Reward is the score difference between consecutive states.
-        """
+        ##Reward is the score difference between consecutive states.
         return endState.state.getScore() - startState.state.getScore()
 
     def getQValue(self,
                   state: GameStateFeatures,
                   action: Directions) -> float:
+        
+        ##Return QValue associated to given state-action pair
         key = (tuple(state.getFeatureVector()), action)
         return self.Q.get(key, 0.0)
 
     def maxQValue(self, state: GameStateFeatures) -> float:
+        
+        ##For a given state, obtain the maximum associated QValues for all it's legal/possible state-action pairings
         legal = state.state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
@@ -237,6 +239,7 @@ class QLearnAgent(Agent):
               action: Directions,
               reward: float,
               nextState: GameStateFeatures):
+        ##Apply the QLearning function to the given state-action pair with the associated reward and nextState
         key = (tuple(state.getFeatureVector()), action)
         oldQ = self.Q.get(key, 0.0)
         sample = reward + self.gamma * self.maxQValue(nextState)
@@ -245,34 +248,36 @@ class QLearnAgent(Agent):
     def updateCount(self,
                     state: GameStateFeatures,
                     action: Directions):
+        ##Add 1 to the Count of the given state-action pair
         key = (tuple(state.getFeatureVector()), action)
         self.N[key] = self.N.get(key, 0) + 1
 
     def getCount(self,
                  state: GameStateFeatures,
                  action: Directions) -> int:
+        ##Return the Count of the given state-action pair
         key = (tuple(state.getFeatureVector()), action)
         return self.N.get(key, 0)
 
     def explorationFn(self,
                       utility: float,
                       counts: int) -> float:
-        """
-        Encourage trying actions with low visitation counts, but smoothly.
-        """
+        ##When returning utility of state-action pairs with count lesser than maxAttempts, return it with a slight incraese
         if counts < self.maxAttempts:
             return utility + 5.0 / (counts + 1)
         return utility
 
     def getAction(self, state: GameState) -> Directions:
+        ##Obtain the stateFeatures from the state
         stateFeatures = GameStateFeatures(state)
 
-        # Learn from previous transition
+        # Learn from previous transition if any (Compute reward -> Update count -> Apply QLearning)
         if self.prevState is not None and self.prevAction is not None:
             reward = self.computeReward(self.prevState, stateFeatures)
             self.updateCount(self.prevState, self.prevAction)
             self.learn(self.prevState, self.prevAction, reward, stateFeatures)
 
+        ##Obtain the legal actions (STOP not included)
         legal = stateFeatures.state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
@@ -280,13 +285,16 @@ class QLearnAgent(Agent):
         if not legal:
             return Directions.STOP
 
-        # Epsilon-greedy
+        # Choose next action via Epsilon Greedy mechanism
         if random.random() < self.epsilon:
+            ##Random directions are selected among legal actions (STOP not included)
             action = random.choice(legal)
         else:
+            ##If direction is not randomly chosen
+            ##go through all viable actions for the current state 
+            ##and select the one with best value
             scored_actions = []
             best_value = float('-inf')
-
             for a in legal:
                 value = self.explorationFn(self.getQValue(stateFeatures, a),
                                            self.getCount(stateFeatures, a))
@@ -297,9 +305,11 @@ class QLearnAgent(Agent):
             best_actions = [a for a, v in scored_actions if v == best_value]
             action = random.choice(best_actions)
 
+        ##Save the current state and chosen action as previous State and Actions, for use in the next iteration. 
         self.prevState = stateFeatures
         self.prevAction = action
 
+        ##Return the selected action
         return action
 
     def final(self, state: GameState):
