@@ -33,28 +33,11 @@ import numpy as np
 
 
 class GameStateFeatures:
-    """
-    Wrapper class around a game state where you can extract
-    useful information for your Q-learning algorithm
-    """
 
     def __init__(self, state: GameState):
-        """
-        Args:
-            state: A given game state object
-        """
         self.state = state
 
-    def __eq__(self, other):
-        return hasattr(other, 'state') and self.state == other.state
-
-    def __hash__(self):
-        return hash(self.state)
-
     def walls(self, state):
-        """
-        Returns a list of (x, y) pairs of wall positions
-        """
         
         wallList= []
         wallGrid = state.getWalls()
@@ -67,9 +50,6 @@ class GameStateFeatures:
         return wallList
 
     def inFront(self, obj, facing, state):
-        """
-        Checks if an object is in front of Pacman in the direction he is facing, without any walls in between
-        """
 
         pacman = state.getPacmanPosition()
         pacman_x = pacman[0]
@@ -114,6 +94,7 @@ class GameStateFeatures:
 
         return False
 
+        # using this from coursework 1 with slight modifications
     def getFeatureVector(self):
         # Returns local information about the environment in the form of a feature vector
         features = []
@@ -128,10 +109,12 @@ class GameStateFeatures:
 
         ghosts = self.state.getGhostPositions()
         facing = self.state.getPacmanState().configuration.direction
+        # is there a ghost in front of pacman
         visibleGhost = any(self.inFront(g, facing, self.state) for g in ghosts)
         features.append(1 if visibleGhost else 0)
 
-        # Immediate ghost adjacency: N, E, S, W
+        # for calculating if ghosts are around pacman
+        # reduced this feature space to 4 (up, down, left, right) rather than 8 (including diagonals)
         for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
             features.append(1 if (xLoc + dx, yLoc + dy) in ghosts else 0)
 
@@ -139,11 +122,11 @@ class GameStateFeatures:
         nearby = any(abs(g[0] - xLoc) + abs(g[1] - yLoc) <= 2 for g in ghosts)
         features.append(1 if nearby else 0)
 
-        # Direction of nearest food
+        # replaced food metric in cw1 to find nearest food rather than "is there food around pacman"
         foodGrid = self.state.getFood()
         food_list = foodGrid.asList()
         if food_list:
-            nearest = min(food_list, key=lambda f: abs(f[0] - xLoc) + abs(f[1] - yLoc))
+            nearest = min(food_list, key=lambda f: abs(f[0] - xLoc) + abs(f[1] - yLoc)) # nearest food in any direction including diagonals
             fx, fy = nearest
             features.append(1 if fy > yLoc else 0) # food North
             features.append(1 if fx > xLoc else 0) # food East
@@ -152,7 +135,7 @@ class GameStateFeatures:
         else:
             features.extend([0, 0, 0, 0])
 
-        # Total remaining food
+        # feature for the number of remaining foodcrumbs
         features.append(int(np.sum(np.array(self.state.getFood().data))))
 
         return features
@@ -167,14 +150,6 @@ class QLearnAgent(Agent):
                  gamma: float = 0.8,
                  maxAttempts: int = 30,
                  numTraining: int = 10):
-        """
-        Args:
-            alpha: learning rate
-            epsilon: exploration rate
-            gamma: discount factor
-            maxAttempts: how many times to try each action in each state
-            numTraining: number of training episodes
-        """
         super().__init__()
         
         self.alpha = float(alpha)
@@ -218,20 +193,20 @@ class QLearnAgent(Agent):
     @staticmethod
     def computeReward(startState: GameState,
                       endState: GameState) -> float:
-        ##Reward is the score difference between consecutive states.
+        
+        # score is calculated as difference between current score and previous score
         return endState.state.getScore() - startState.state.getScore()
 
     def getQValue(self,
                   state: GameStateFeatures,
                   action: Directions) -> float:
         
-        ##Return QValue associated to given state-action pair
+        # get Q value for this state and action, if note available, we return 0
         key = (tuple(state.getFeatureVector()), action)
         return self.Q.get(key, 0.0)
 
     def maxQValue(self, state: GameStateFeatures) -> float:
-        
-        ##For a given state, obtain the maximum associated QValues for all it's legal/possible state-action pairings
+
         legal = state.state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
@@ -239,6 +214,7 @@ class QLearnAgent(Agent):
         if not legal:
             return 0.0
 
+        # among the legal actions for this state, we find the highest q value, then we assign return that max Q value
         return max(self.getQValue(state, action) for action in legal)
 
     def learn(self,
@@ -246,6 +222,7 @@ class QLearnAgent(Agent):
               action: Directions,
               reward: float,
               nextState: GameStateFeatures):
+        
         ##Apply the QLearning function to the given state-action pair with the associated reward and nextState
         key = (tuple(state.getFeatureVector()), action)
         oldQ = self.Q.get(key, 0.0)
@@ -255,6 +232,7 @@ class QLearnAgent(Agent):
     def updateCount(self,
                     state: GameStateFeatures,
                     action: Directions):
+        
         ##Add 1 to the Count of the given state-action pair
         key = (tuple(state.getFeatureVector()), action)
         self.N[key] = self.N.get(key, 0) + 1
@@ -262,6 +240,7 @@ class QLearnAgent(Agent):
     def getCount(self,
                  state: GameStateFeatures,
                  action: Directions) -> int:
+        
         ##Return the Count of the given state-action pair
         key = (tuple(state.getFeatureVector()), action)
         return self.N.get(key, 0)
@@ -269,12 +248,14 @@ class QLearnAgent(Agent):
     def explorationFn(self,
                       utility: float,
                       counts: int) -> float:
+        
         ##When returning utility of state-action pairs with count lesser than maxAttempts, return it with a slight incraese
         if counts < self.maxAttempts:
             return utility + 5.0 / (counts + 1)
         return utility
 
     def getAction(self, state: GameState) -> Directions:
+
         ##Obtain the stateFeatures from the state
         stateFeatures = GameStateFeatures(state)
 
@@ -320,6 +301,7 @@ class QLearnAgent(Agent):
         return action
 
     def final(self, state: GameState):
+
         """Called at the end of each game"""
 
         print(f"Game {self.getEpisodesSoFar()} just ended!")
